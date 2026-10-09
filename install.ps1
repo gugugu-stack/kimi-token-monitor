@@ -60,7 +60,10 @@ while ($i -lt $lines.Count) {
         $j = $i + 1
         while ($j -lt $lines.Count -and -not $lines[$j].TrimStart().StartsWith('[')) { $j++ }
         $block = $lines[$i..($j - 1)]
-        if (($block -join "`n") -like '*kimi-usage-widget*') {
+        # Recognised by the script it launches, never by the folder name: the
+        # folder can be renamed or cloned anywhere, while the hook always runs
+        # start-widget.ps1 from wherever the folder happens to sit.
+        if (($block -join "`n") -like '*start-widget.ps1*') {
             $removed++
             $i = $j
             continue

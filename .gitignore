@@ -1,0 +1,6 @@
+# Runtime state, not source: a position, a hotkey choice and a log belong to the
+# machine that ran the widget, not to the repository.
+widget.pid
+widget.state.json
+widget.settings.json
+diag.log

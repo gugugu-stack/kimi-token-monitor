@@ -1,0 +1,5 @@
+# Line endings are pinned so a clone behaves exactly like the original working
+# copy: the .ps1 files are LF (PowerShell reads either), while the .cmd files are
+# CRLF because cmd.exe parses them.
+*.ps1 text eol=lf
+*.cmd text eol=crlf

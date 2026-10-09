@@ -18,6 +18,12 @@ $script:PetBezel  = (Px 1)
 $script:PetFont     = New-Object System.Drawing.Font('Noto Sans SC', 8)
 $script:PetFontBold = New-Object System.Drawing.Font('Noto Sans SC', 8, [System.Drawing.FontStyle]::Bold)
 
+# Numbers and Latin take the client's Latin face when the host loaded it
+# privately; the arrows and the Chinese label stay on Noto Sans SC, which is
+# also what the client uses for Chinese.
+$script:PetFontNum     = if ($script:numFamily) { New-Object System.Drawing.Font($script:numFamily, 8) } else { $script:PetFont }
+$script:PetFontNumBold = if ($script:numFamily) { New-Object System.Drawing.Font($script:numFamily, 8, [System.Drawing.FontStyle]::Bold) } else { $script:PetFontBold }
+
 $script:PetText      = [System.Drawing.Color]::FromArgb(240, 240, 243)
 $script:PetArrowUp   = [System.Drawing.Color]::FromArgb(120, 214, 255)
 $script:PetArrowDown = [System.Drawing.Color]::FromArgb(255, 190, 96)
@@ -248,15 +254,15 @@ function Render-PetOverlay {
 
     Draw-CenteredSegments $Graphics $cx $startY @(
         @{ Text = '↑'; Color = $script:PetArrowUp; Font = $script:PetFontBold },
-        @{ Text = (' ' + $InputText); Color = $script:PetText; Font = $script:PetFont })
+        @{ Text = (' ' + $InputText); Color = $script:PetText; Font = $script:PetFontNum })
 
     Draw-CenteredSegments $Graphics $cx ($startY + $lineH) @(
         @{ Text = '↓'; Color = $script:PetArrowDown; Font = $script:PetFontBold },
-        @{ Text = (' ' + $OutputText); Color = $script:PetText; Font = $script:PetFont })
+        @{ Text = (' ' + $OutputText); Color = $script:PetText; Font = $script:PetFontNum })
 
     Draw-CenteredSegments $Graphics $cx ($startY + $lineH * 2) @(
         @{ Text = '命中 '; Color = $script:PetText; Font = $script:PetFont },
-        @{ Text = $RateText; Color = $RateColor; Font = $script:PetFontBold })
+        @{ Text = $RateText; Color = $RateColor; Font = $script:PetFontNumBold })
 }
 
 function Render-Pet {
@@ -308,7 +314,11 @@ function New-TrayImage {
         # occupy and the shape centred on that box. Centring the *line* box
         # instead leaves it visibly low, and a guessed font size lands nowhere
         # near the target.
-        $family = New-Object System.Drawing.FontFamily('Noto Sans SC')
+        # The icon carries a Latin K, so it takes the same Latin face as the
+        # numbers; the family must not be disposed when it belongs to the
+        # private collection, which outlives this function.
+        $ownFamily = -not $script:numFamily
+        $family = if ($ownFamily) { New-Object System.Drawing.FontFamily('Noto Sans SC') } else { $script:numFamily }
         $probe = New-Object System.Drawing.Drawing2D.GraphicsPath
         $probe.AddString('K', $family, [System.Drawing.FontStyle]::Bold, [single]100,
                          (New-Object System.Drawing.PointF(0, 0)), [System.Drawing.StringFormat]::GenericDefault)
@@ -328,7 +338,7 @@ function New-TrayImage {
         $brush.Dispose()
         $shift.Dispose()
         $glyph.Dispose()
-        $family.Dispose()
+        if ($ownFamily) { $family.Dispose() }
     } finally { $gb.Dispose() }
 
     $small = New-Object System.Drawing.Bitmap(32, 32, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)

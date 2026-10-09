@@ -6,7 +6,8 @@
 # a previous install (any path) is replaced, not duplicated.
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$needed = @('start-widget.ps1', 'usage-widget.ps1', 'usage-core.ps1', 'pet-render.ps1', 'hotkey.ps1')
+$needed = @('start-widget.ps1', 'usage-widget.ps1', 'usage-core.ps1', 'pet-render.ps1', 'hotkey.ps1',
+            'fonts\SchibstedGrotesk-Regular.ttf', 'fonts\SchibstedGrotesk-Bold.ttf')
 
 Write-Host ''
 Write-Host '  Kimi Code 用量悬浮窗 — 安装' -ForegroundColor Cyan

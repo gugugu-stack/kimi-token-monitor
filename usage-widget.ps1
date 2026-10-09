@@ -52,6 +52,28 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
+# Numbers and Latin text use the same face the desktop client uses for them
+# (Schibsted Grotesk), so the widget matches the client rather than merely
+# resembling it; Chinese stays on the family the client uses for Chinese.
+# The pair is loaded privately — nothing is installed system-wide and the files
+# live in this folder. Both are SIL OFL, see fonts/OFL.txt. If they are missing
+# the widget falls back to the UI font for numbers and looks as it did before.
+$script:numFamily = $null
+$script:fontCollection = $null
+try {
+    $pfc = New-Object System.Drawing.Text.PrivateFontCollection
+    foreach ($file in @('fonts\SchibstedGrotesk-Regular.ttf', 'fonts\SchibstedGrotesk-Bold.ttf')) {
+        $path = Join-Path $PSScriptRoot $file
+        if (Test-Path -LiteralPath $path) { $pfc.AddFontFile($path) }
+    }
+    if ($pfc.Families.Count -gt 0) {
+        # Regular and Bold share one family name, which is what lets the two
+        # files be addressed as one family with two styles.
+        $script:numFamily = $pfc.Families[0]
+        $script:fontCollection = $pfc
+    }
+} catch { $script:numFamily = $null }
+
 . (Join-Path $PSScriptRoot 'usage-core.ps1')
 . (Join-Path $PSScriptRoot 'pet-render.ps1')
 . (Join-Path $PSScriptRoot 'hotkey.ps1')
@@ -63,6 +85,12 @@ $fontUI    = New-Object System.Drawing.Font('Noto Sans SC', 9)
 $fontBold  = New-Object System.Drawing.Font('Noto Sans SC', 9, [System.Drawing.FontStyle]::Bold)
 $fontHead  = New-Object System.Drawing.Font('Noto Sans SC', 10.5, [System.Drawing.FontStyle]::Bold)
 $fontSmall = New-Object System.Drawing.Font('Noto Sans SC', 7.5)
+
+# Every value the panel shows is digits and units, so it takes the client's Latin
+# face too; the labels beside them stay Chinese. Falls back to the UI font when
+# the private pair could not be loaded.
+$fontNum     = if ($script:numFamily) { New-Object System.Drawing.Font($script:numFamily, 9) } else { $fontUI }
+$fontNumBold = if ($script:numFamily) { New-Object System.Drawing.Font($script:numFamily, 9, [System.Drawing.FontStyle]::Bold) } else { $fontBold }
 
 $colBg        = [System.Drawing.Color]::FromArgb(31, 31, 35)
 $colCombo     = [System.Drawing.Color]::FromArgb(48, 48, 54)
@@ -469,6 +497,16 @@ $rowY += 26
 
 $lblRateName = New-Label '缓存命中率' 12 $rowY 104 22 $fontBold $colFg 'MiddleRight'
 $lblRateVal  = New-Label '—' 122 $rowY 170 22 $fontBold $colFg
+
+# Numbers take the client's Latin face, and therefore have to be drawn by GDI+:
+# the native label renderer goes through GDI, which cannot see a privately
+# loaded family at all and would quietly substitute a system font.
+foreach ($lbl in @($lblInVal, $lblOutVal, $lblRdVal, $lblCrVal)) {
+    $lbl.Font = $fontNum
+    $lbl.UseCompatibleTextRendering = $true
+}
+$lblRateVal.Font = $fontNumBold
+$lblRateVal.UseCompatibleTextRendering = $true
 
 # The row can appear mid-session if a provider that reports cache writes starts
 # being used, so the layout is adjusted rather than assumed.

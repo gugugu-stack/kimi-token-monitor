@@ -46,7 +46,17 @@
 | `usage-core.ps1` | 数据层：扫描会话事件文件、按天分桶、区间统计、命中率配色 |
 | `pet-render.ps1` | 绘制：球体（渐变 + 柏林噪波）、文字层、托盘图标 |
 | `hotkey.ps1` | 全局快捷键（RegisterHotKey + NativeWindow 消息宿主） |
+| `fonts/` | 数字用的拉丁字体（Schibsted Grotesk，含 OFL 许可文本） |
 | `install.ps1` / `卸载.cmd` 等 | 安装与卸载 |
+
+## 字体
+
+- **数字与拉丁**：`Schibsted Grotesk`，与 Kimi Code 桌面端界面用的是同一款。
+  随仓库分发在 `fonts/`（两个静态字面 Regular / Bold），由控件**进程内私有加载**——
+  不装进系统字体列表，卸载即消失。文件缺失时数字会自动退回中文字体，功能不受影响。
+- **中文**：`Noto Sans SC`，同样与客户端一致。这一款**不随仓库分发**，依赖系统已安装；
+  没装则退回系统默认中文字体。
+- 许可：Schibsted Grotesk 为 SIL OFL 1.1，全文见 `fonts/OFL.txt`。
 
 ## 已知限制
 

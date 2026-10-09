@@ -7,8 +7,8 @@ $script:PetWindow = 144
 $script:PetBall   = 104
 $script:PetBezel  = 1
 
-$script:PetFont     = New-Object System.Drawing.Font('Microsoft YaHei UI', 8)
-$script:PetFontBold = New-Object System.Drawing.Font('Microsoft YaHei UI', 8, [System.Drawing.FontStyle]::Bold)
+$script:PetFont     = New-Object System.Drawing.Font('Noto Sans SC', 8)
+$script:PetFontBold = New-Object System.Drawing.Font('Noto Sans SC', 8, [System.Drawing.FontStyle]::Bold)
 
 $script:PetText      = [System.Drawing.Color]::FromArgb(240, 240, 243)
 $script:PetArrowUp   = [System.Drawing.Color]::FromArgb(120, 214, 255)
@@ -300,7 +300,7 @@ function New-TrayImage {
         # occupy and the shape centred on that box. Centring the *line* box
         # instead leaves it visibly low, and a guessed font size lands nowhere
         # near the target.
-        $family = New-Object System.Drawing.FontFamily('Segoe UI')
+        $family = New-Object System.Drawing.FontFamily('Noto Sans SC')
         $probe = New-Object System.Drawing.Drawing2D.GraphicsPath
         $probe.AddString('K', $family, [System.Drawing.FontStyle]::Bold, [single]100,
                          (New-Object System.Drawing.PointF(0, 0)), [System.Drawing.StringFormat]::GenericDefault)

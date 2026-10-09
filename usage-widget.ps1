@@ -17,10 +17,13 @@ Add-Type -AssemblyName System.Drawing
 . (Join-Path $PSScriptRoot 'pet-render.ps1')
 . (Join-Path $PSScriptRoot 'hotkey.ps1')
 
-$fontUI    = New-Object System.Drawing.Font('Microsoft YaHei UI', 9)
-$fontBold  = New-Object System.Drawing.Font('Microsoft YaHei UI', 9, [System.Drawing.FontStyle]::Bold)
-$fontHead  = New-Object System.Drawing.Font('Microsoft YaHei UI', 10.5, [System.Drawing.FontStyle]::Bold)
-$fontSmall = New-Object System.Drawing.Font('Microsoft YaHei UI', 7.5)
+# One family across every surface. Noto Sans SC is safe to swap in because its
+# CJK glyphs are the same full width as Microsoft YaHei's, so the fixed-width
+# label and value columns below keep their alignment.
+$fontUI    = New-Object System.Drawing.Font('Noto Sans SC', 9)
+$fontBold  = New-Object System.Drawing.Font('Noto Sans SC', 9, [System.Drawing.FontStyle]::Bold)
+$fontHead  = New-Object System.Drawing.Font('Noto Sans SC', 10.5, [System.Drawing.FontStyle]::Bold)
+$fontSmall = New-Object System.Drawing.Font('Noto Sans SC', 7.5)
 
 $colBg        = [System.Drawing.Color]::FromArgb(31, 31, 35)
 $colCombo     = [System.Drawing.Color]::FromArgb(48, 48, 54)

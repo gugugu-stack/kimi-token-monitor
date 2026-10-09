@@ -19,7 +19,7 @@ foreach ($f in $needed) {
 }
 if ($missing.Count -gt 0) {
     Write-Host ('  [错误] 缺少文件: ' + ($missing -join ', ')) -ForegroundColor Red
-    Write-Host '  请把整个 kimi-usage-widget 文件夹一起拷过来，不要只拷其中几个文件。'
+    Write-Host '  请把整个 kimi-token-monitor 文件夹一起拷过来，不要只拷其中几个文件。'
     exit 1
 }
 
@@ -77,7 +77,7 @@ while ($i -lt $lines.Count) {
 }
 
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$backup = "$configPath.bak-usage-widget-$stamp"
+$backup = "$configPath.bak-kimi-token-monitor-$stamp"
 Copy-Item -LiteralPath $configPath -Destination $backup -Force
 
 while ($out.Count -gt 0 -and $out[$out.Count - 1].Trim() -eq '') { $out.RemoveAt($out.Count - 1) }

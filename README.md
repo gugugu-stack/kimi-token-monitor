@@ -1,12 +1,12 @@
-# Kimi Code 用量悬浮窗
+# Kimi Code token 用量监视器（kimi-token-monitor）
 
-给 Kimi Code 桌面端加一个常驻的用量监视器：一个可以拖动的小球显示 `↑输入 / ↓输出 / 命中率`，
+给 Kimi Code 桌面端加一个常驻的 **token 用量**监视器：一个可以拖动的小球显示 `↑输入 / ↓输出 / 命中率`，
 双击展开成详细面板（按天/区间 × 当前会话/全部会话统计，含缓存读取与缓存命中率）。
 数据全部来自本机客户端自己的会话事件文件，不联网、不上报。
 
 ## 效果
 
-- **小球**：深蓝玻璃球 + 缓慢流动的噪波，竖排三行信息，命中率颜色随数值绿→黄→红（低于 80% 开始转黄）
+- **小球**：深蓝玻璃球 + 缓慢流动的噪波，竖排三行 token 信息，命中率颜色随数值绿→黄→红（低于 80% 开始转黄）
 - **面板**：半透明卡片，可拖动；两个下拉框切换时间区间与统计范围
 - **托盘图标**：任务栏通知区的蓝球 + 粗体 K，右键菜单可显示面板 / 显示小球 / 全部收起 / 退出
 - **全局快捷键**：默认 `Ctrl + Alt + K`，有界面时收起、收起时唤出小球；可在面板的 ▼ 里改
@@ -16,8 +16,8 @@
 
 需要 Windows + Kimi Code 桌面端（自带 PowerShell 5.1，无需额外依赖）。
 
-1. 把整个 `kimi-usage-widget` 文件夹放到 `%USERPROFILE%\.kimi-code\` 下
-   （即 `C:\Users\<你>\.kimi-code\kimi-usage-widget\`，必须整个文件夹一起放，脚本互相引用）
+1. 把整个 `kimi-token-monitor` 文件夹放到 `%USERPROFILE%\.kimi-code\` 下
+   （即 `C:\Users\<你>\.kimi-code\kimi-token-monitor\`，必须整个文件夹一起放，脚本互相引用）
 2. 双击 `安装.cmd`（它会往 `config.toml` 写一条 SessionStart 钩子，并自动备份原配置）
 3. 重启 Kimi Code —— 钩子只在会话启动时加载
 
@@ -29,7 +29,7 @@
 
 ## 会改动你机器的哪些地方
 
-- `%USERPROFILE%\.kimi-code\config.toml`：增加一条 `[[hooks]]`（安装时备份成 `config.toml.bak-usage-widget-*`）
+- `%USERPROFILE%\.kimi-code\config.toml`：增加一条 `[[hooks]]`（安装时备份成 `config.toml.bak-kimi-token-monitor-*`）
 - 注册表 `HKCU\Control Panel\NotifyIconSettings`：把本程序的托盘图标设为「始终显示」
   （等同于你手动把它从 `^` 折叠区拖到任务栏）
 - 全局快捷键占用 `Ctrl + Alt + K`（可在设置里改；被其他程序占用时会提示并回滚）

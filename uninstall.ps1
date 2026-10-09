@@ -46,7 +46,7 @@ if ($removed -eq 0) {
 }
 
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$backup = "$configPath.bak-usage-widget-$stamp"
+$backup = "$configPath.bak-kimi-token-monitor-$stamp"
 Copy-Item -LiteralPath $configPath -Destination $backup -Force
 
 while ($out.Count -gt 0 -and $out[$out.Count - 1].Trim() -eq '') { $out.RemoveAt($out.Count - 1) }
@@ -55,5 +55,5 @@ while ($out.Count -gt 0 -and $out[$out.Count - 1].Trim() -eq '') { $out.RemoveAt
 Write-Host ''
 Write-Host ("  [完成] 已移除 " + $removed + " 条钩子") -ForegroundColor Green
 Write-Host ('  配置备份: ' + $backup)
-Write-Host '  重启 Kimi Code 后生效。若不再需要，可直接删掉 kimi-usage-widget 文件夹。'
+Write-Host '  重启 Kimi Code 后生效。若不再需要，可直接删掉 kimi-token-monitor 文件夹。'
 Write-Host ''

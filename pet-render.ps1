@@ -1,11 +1,19 @@
 ﻿Add-Type -AssemblyName System.Drawing -ErrorAction SilentlyContinue
 
-# Geometry. Windows clamps small top-level window widths, so the window stays at
-# a fixed square and the ball is centred inside it; the margin around the ball is
-# painted in the chroma-key colour and therefore never shows.
-$script:PetWindow = 144
-$script:PetBall   = 104
-$script:PetBezel  = 1
+# The host declares DPI awareness and provides $script:UiScale / Px; this file is
+# also loaded on its own for offline previews of the ball, so it falls back to
+# 1:1 rather than failing to load.
+if (-not $script:UiScale) { $script:UiScale = 1.0 }
+if (-not (Get-Command Px -ErrorAction SilentlyContinue)) {
+    function Px { param([double]$Value) return [int][Math]::Round($Value * $script:UiScale) }
+}
+
+# Geometry, written in 96 DPI units. Windows clamps small top-level window widths,
+# so the window stays at a fixed square and the ball is centred inside it; the
+# margin around the ball is painted in the chroma-key colour and never shows.
+$script:PetWindow = (Px 144)
+$script:PetBall   = (Px 104)
+$script:PetBezel  = (Px 1)
 
 $script:PetFont     = New-Object System.Drawing.Font('Noto Sans SC', 8)
 $script:PetFontBold = New-Object System.Drawing.Font('Noto Sans SC', 8, [System.Drawing.FontStyle]::Bold)
@@ -106,7 +114,7 @@ public class PetNoise {
 '@
 
 $script:PetNoiseStrength = 16
-$script:noisePair = [PetNoise]::Make(96, $script:PetNoiseStrength, 20261009)
+$script:noisePair = [PetNoise]::Make((Px 96), $script:PetNoiseStrength, 20261009)
 $script:PetNoiseLight = $script:noisePair[0]
 $script:PetNoiseDark  = $script:noisePair[1]
 
@@ -212,8 +220,8 @@ function Render-PetBall {
     $path.Dispose()
 
     # bottom rim light for a glass edge
-    $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(90, 150, 205, 250), [single]1.5)
-    $rim = [System.Drawing.RectangleF]::Inflate($inner, [single](-1.5), [single](-1.5))
+    $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(90, 150, 205, 250), [single](1.5 * $script:UiScale))
+    $rim = [System.Drawing.RectangleF]::Inflate($inner, [single](-1.5 * $script:UiScale), [single](-1.5 * $script:UiScale))
     $Graphics.DrawArc($pen, $rim, 25, 130)
     $pen.Dispose()
 
@@ -235,8 +243,8 @@ function Render-PetOverlay {
     $Graphics.Clear($BackgroundColor)
 
     $cx = $Width / 2.0
-    $lineH = 16.0
-    $startY = ($Height / 2.0) - ($lineH * 1.5) + 1
+    $lineH = 16.0 * $script:UiScale
+    $startY = ($Height / 2.0) - ($lineH * 1.5) + $script:UiScale
 
     Draw-CenteredSegments $Graphics $cx $startY @(
         @{ Text = '↑'; Color = $script:PetArrowUp; Font = $script:PetFontBold },

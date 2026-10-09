@@ -9,6 +9,45 @@ $ErrorActionPreference = 'Stop'
 $script:instanceMutex = New-Object System.Threading.Mutex($false, 'Local\KimiUsageWidget')
 if (-not $script:instanceMutex.WaitOne(0)) { exit 0 }
 
+# DPI awareness, claimed before any window exists.
+#
+# Without it the process draws at 96 DPI and Windows stretches the finished
+# window by the monitor's scale factor (150% here), so every glyph arrives on
+# screen as a resampled bitmap and looks soft next to natively drawn UI. With
+# it the surface is physical and text is hinted against the real pixel grid.
+# Point-sized fonts then scale themselves; the hand-tuned pixel geometry below
+# goes through Px() so the layout keeps its proportions either way.
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public class Dpi {
+    [DllImport("user32.dll")] private static extern bool SetProcessDpiAwarenessContext(IntPtr ctx);
+    [DllImport("shcore.dll")] private static extern int SetProcessDpiAwareness(int value);
+    [DllImport("user32.dll")] private static extern bool SetProcessDPIAware();
+    [DllImport("user32.dll")] private static extern uint GetDpiForSystem();
+    // Returns which call worked, 0 if none did.
+    public static int Apply() {
+        try { if (SetProcessDpiAwarenessContext(new IntPtr(-4))) return 1; } catch { }  // PER_MONITOR_AWARE_V2
+        try { if (SetProcessDpiAwareness(2) == 0) return 2; } catch { }                 // PER_MONITOR_DPI_AWARE
+        try { if (SetProcessDPIAware()) return 3; } catch { }                           // SYSTEM_DPI_AWARE
+        return 0;
+    }
+    public static int SystemDpi() { try { return (int)GetDpiForSystem(); } catch { return 96; } }
+}
+'@
+
+$script:DpiMode = [Dpi]::Apply()
+# If awareness could not be claimed the process stays virtualised, and then the
+# coordinates really are 96 DPI — scale 1 keeps that case exactly as it was.
+$script:UiScale = if ($script:DpiMode -gt 0) { [Dpi]::SystemDpi() / 96.0 } else { 1.0 }
+
+# Every literal pixel size in this file is written in 96 DPI units and handed to
+# this function, which is what keeps the two cases identical in appearance.
+function Px {
+    param([double]$Value)
+    return [int][Math]::Round($Value * $script:UiScale)
+}
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
@@ -39,7 +78,7 @@ $script:brushFg    = New-Object System.Drawing.SolidBrush($colFg)
 $script:brushCombo = New-Object System.Drawing.SolidBrush($colCombo)
 $script:brushSel   = New-Object System.Drawing.SolidBrush($colSel)
 
-$script:PanelW = 312
+$script:PanelW = (Px 312)
 
 # Cache-creation tokens ("cache write") are an Anthropic-API concept: OpenAI-style
 # and Kimi's managed API cache automatically and never report a separate write
@@ -50,8 +89,8 @@ Update-Scan -BudgetBytes 1073741824
 $script:createRowShown = ((Get-ScopeTotals '全部会话' $null).Create -gt 0)
 
 function Get-PanelHeight {
-    if ($script:createRowShown) { return 206 }
-    return 182
+    if ($script:createRowShown) { return (Px 206) }
+    return (Px 182)
 }
 $script:PanelH = Get-PanelHeight
 
@@ -65,7 +104,8 @@ $script:diagPath = Join-Path $PSScriptRoot 'diag.log'
 function Get-DefaultPosition {
     param([int]$W, [int]$H)
     $a = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
-    return (New-Object System.Drawing.Point(($a.Right - $W - 16), ($a.Bottom - $H - 16)))
+    $m = Px 16
+    return (New-Object System.Drawing.Point(($a.Right - $W - $m), ($a.Bottom - $H - $m)))
 }
 
 # Keep the window fully on the monitor that contains the anchor point.
@@ -98,7 +138,13 @@ if (Test-Path -LiteralPath $statePath) {
         $st = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json
         if ($st.mode -eq 'pet') { $script:mode = 'pet' }
         if ($null -ne $st.x -and $null -ne $st.y) {
-            $script:startPos = New-Object System.Drawing.Point([int]$st.x, [int]$st.y)
+            # Coordinates are physical now. A file written before that change has
+            # no scale marker and holds 96 DPI values, so it is converted once
+            # here — otherwise the widget would jump to the wrong corner.
+            $from = if ($null -ne $st.scale) { [double]$st.scale } else { 1.0 }
+            $k = $script:UiScale / $from
+            $script:startPos = New-Object System.Drawing.Point(
+                [int][Math]::Round($st.x * $k), [int][Math]::Round($st.y * $k))
         }
     } catch { }
 }
@@ -144,6 +190,9 @@ function Save-State {
         mode = $script:mode
         x    = $active.Location.X
         y    = $active.Location.Y
+        # Which DPI the coordinates were measured at, so a later run on a
+        # differently scaled display can convert them instead of guessing.
+        scale = $script:UiScale
     }
     $obj | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
@@ -153,6 +202,9 @@ function Save-State {
 $form = New-Object System.Windows.Forms.Form
 $form.FormBorderStyle = 'None'
 $form.StartPosition = 'Manual'
+# Positions are computed here in physical pixels; letting WinForms also rescale
+# them by font metrics would apply the DPI factor a second time.
+$form.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::None
 $form.Location = $script:startPos
 $form.Size = New-Object System.Drawing.Size($script:PanelW, $script:PanelH)
 $form.TopMost = $true
@@ -289,9 +341,9 @@ function Hide-PanelWindows {
 # icons are drawn rather than typed: a dash and a multiplication sign carry very
 # different weights at the same font size, which is what made the two buttons
 # look mismatched. Drawing gives each the same 9px span and stroke.
-$script:iconCfg   = New-Object System.Drawing.Rectangle(242, 8, 18, 18)
-$script:iconMin   = New-Object System.Drawing.Rectangle(264, 8, 18, 18)
-$script:iconClose = New-Object System.Drawing.Rectangle(286, 8, 18, 18)
+$script:iconCfg   = New-Object System.Drawing.Rectangle((Px 242), (Px 8), (Px 18), (Px 18))
+$script:iconMin   = New-Object System.Drawing.Rectangle((Px 264), (Px 8), (Px 18), (Px 18))
+$script:iconClose = New-Object System.Drawing.Rectangle((Px 286), (Px 8), (Px 18), (Px 18))
 $script:hoverIcon = ''
 $script:panelDragged = $false
 
@@ -317,25 +369,30 @@ $form.Add_Paint({
             @{ R = $script:iconMin;   K = 'min' },
             @{ R = $script:iconClose; K = 'close' })) {
         $col = if ($script:hoverIcon -eq $pair.K) { $colFg } else { $colDim }
-        $cx = $pair.R.X + 9
-        $cy = $pair.R.Y + 9
+        # Glyph geometry is derived from the box rather than written in pixels,
+        # so it looks the same at any DPI: a stroke spans half the box and the
+        # pen is 1.6/18 of it.
+        $box = $pair.R.Width
+        $cx = $pair.R.X + $box / 2.0
+        $cy = $pair.R.Y + $box / 2.0
+        $span = $box / 4.0
         if ($pair.K -eq 'cfg') {
             # A filled triangle, matching the ▼ the settings entry is described
-            # by. A gear would be mush at 18px.
+            # by. A gear would be mush at this size.
             $tb = New-Object System.Drawing.SolidBrush($col)
             $g.FillPolygon($tb, [System.Drawing.PointF[]]@(
-                    (New-Object System.Drawing.PointF([single]($cx - 4.5), [single]($cy - 2.5))),
-                    (New-Object System.Drawing.PointF([single]($cx + 4.5), [single]($cy - 2.5))),
-                    (New-Object System.Drawing.PointF([single]$cx, [single]($cy + 3.5)))))
+                    (New-Object System.Drawing.PointF([single]($cx - $span), [single]($cy - $box * 0.139))),
+                    (New-Object System.Drawing.PointF([single]($cx + $span), [single]($cy - $box * 0.139))),
+                    (New-Object System.Drawing.PointF([single]$cx, [single]($cy + $box * 0.194)))))
             $tb.Dispose()
             continue
         }
-        $ip = New-Object System.Drawing.Pen($col, [single]1.6)
+        $ip = New-Object System.Drawing.Pen($col, [single]($box / 11.25))
         if ($pair.K -eq 'min') {
-            $g.DrawLine($ip, $cx - 4.5, $cy, $cx + 4.5, $cy)
+            $g.DrawLine($ip, $cx - $span, $cy, $cx + $span, $cy)
         } else {
-            $g.DrawLine($ip, $cx - 4.5, $cy - 4.5, $cx + 4.5, $cy + 4.5)
-            $g.DrawLine($ip, $cx + 4.5, $cy - 4.5, $cx - 4.5, $cy + 4.5)
+            $g.DrawLine($ip, $cx - $span, $cy - $span, $cx + $span, $cy + $span)
+            $g.DrawLine($ip, $cx + $span, $cy - $span, $cx - $span, $cy + $span)
         }
         $ip.Dispose()
     }
@@ -346,8 +403,8 @@ function New-Label {
     if (-not $Parent) { $Parent = $form }
     $l = New-Object System.Windows.Forms.Label
     $l.Text = $Text
-    $l.Location = New-Object System.Drawing.Point($X, $Y)
-    $l.Size = New-Object System.Drawing.Size($W, $H)
+    $l.Location = New-Object System.Drawing.Point((Px $X), (Px $Y))
+    $l.Size = New-Object System.Drawing.Size((Px $W), (Px $H))
     $l.Font = $Font
     $l.ForeColor = $Color
     $l.BackColor = [System.Drawing.Color]::Transparent
@@ -364,7 +421,7 @@ $drawComboItem = {
     $isSel = ($e.State -band [System.Windows.Forms.DrawItemState]::Selected) -ne 0
     $brush = if ($isSel) { $script:brushSel } else { $script:brushCombo }
     $e.Graphics.FillRectangle($brush, $e.Bounds)
-    $e.Graphics.DrawString([string]$sender.Items[$e.Index], $sender.Font, $script:brushFg, [single]($e.Bounds.X + 6), [single]($e.Bounds.Y + 3))
+    $e.Graphics.DrawString([string]$sender.Items[$e.Index], $sender.Font, $script:brushFg, [single]($e.Bounds.X + (Px 6)), [single]($e.Bounds.Y + (Px 3)))
 }
 
 function New-Combo {
@@ -376,9 +433,9 @@ function New-Combo {
     $cb.BackColor = $colCombo
     $cb.ForeColor = $colFg
     $cb.Font = $fontUI
-    $cb.ItemHeight = 20
-    $cb.Location = New-Object System.Drawing.Point($X, $Y)
-    $cb.Size = New-Object System.Drawing.Size($W, 22)
+    $cb.ItemHeight = (Px 20)
+    $cb.Location = New-Object System.Drawing.Point((Px $X), (Px $Y))
+    $cb.Size = New-Object System.Drawing.Size((Px $W), (Px 22))
     [void]$cb.Items.AddRange([object[]]$Items)
     $cb.SelectedIndex = $SelectedIndex
     $cb.Add_DrawItem($drawComboItem)
@@ -422,8 +479,8 @@ function Set-CreateRowVisible {
     $lblCrName.Visible = $Show
     $lblCrVal.Visible = $Show
     $rateY = if ($Show) { 174 } else { 152 }
-    $lblRateName.Location = New-Object System.Drawing.Point(12, $rateY)
-    $lblRateVal.Location = New-Object System.Drawing.Point(122, $rateY)
+    $lblRateName.Location = New-Object System.Drawing.Point((Px 12), (Px $rateY))
+    $lblRateVal.Location = New-Object System.Drawing.Point((Px 122), (Px $rateY))
     Set-PanelGeometry $form.Location $script:PanelW (Get-PanelHeight)
     $form.Invalidate()
 }
@@ -508,7 +565,7 @@ function Hide-PetWindows {
 }
 
 function Get-PetPhase {
-    return (((Get-Date) - $script:petEpoch).TotalMilliseconds * 0.012)
+    return (((Get-Date) - $script:petEpoch).TotalMilliseconds * 0.012 * $script:UiScale)
 }
 
 $petBody.Add_Paint({
@@ -961,8 +1018,8 @@ function New-FlatButton {
     param([string]$Text, [int]$X, [int]$W)
     $b = New-Object System.Windows.Forms.Button
     $b.Text = $Text
-    $b.Location = New-Object System.Drawing.Point($X, 118)
-    $b.Size = New-Object System.Drawing.Size($W, 28)
+    $b.Location = New-Object System.Drawing.Point((Px $X), (Px 118))
+    $b.Size = New-Object System.Drawing.Size((Px $W), (Px 28))
     $b.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $b.FlatAppearance.BorderColor = $colSel
     $b.FlatAppearance.MouseOverBackColor = $colSel
@@ -984,7 +1041,8 @@ function Build-SettingsWindow {
     $w = New-Object System.Windows.Forms.Form
     $w.FormBorderStyle = 'None'
     $w.StartPosition = 'Manual'
-    $w.Size = New-Object System.Drawing.Size(300, 160)
+    $w.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::None
+    $w.Size = New-Object System.Drawing.Size((Px 300), (Px 160))
     # Solid, unlike the panel: this is a window the user reads and types into,
     # and the panel's translucent stack costs a second window and a z-order it
     # has to defend.
@@ -1001,16 +1059,18 @@ function Build-SettingsWindow {
     [void]$w.Handle
     [void][Dwm]::SetRound($w.Handle)
 
-    $script:stgClose = New-Object System.Drawing.Rectangle(266, 8, 18, 18)
+    $script:stgClose = New-Object System.Drawing.Rectangle((Px 266), (Px 8), (Px 18), (Px 18))
     $w.Add_Paint({
         $g = $_.Graphics
         $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
         $col = if ($script:stgHover -eq 'close') { $colFg } else { $colDim }
-        $p = New-Object System.Drawing.Pen($col, [single]1.6)
-        $cx = $script:stgClose.X + 9
-        $cy = $script:stgClose.Y + 9
-        $g.DrawLine($p, $cx - 4.5, $cy - 4.5, $cx + 4.5, $cy + 4.5)
-        $g.DrawLine($p, $cx + 4.5, $cy - 4.5, $cx - 4.5, $cy + 4.5)
+        $box = $script:stgClose.Width
+        $span = $box / 4.0
+        $p = New-Object System.Drawing.Pen($col, [single]($box / 11.25))
+        $cx = $script:stgClose.X + $box / 2.0
+        $cy = $script:stgClose.Y + $box / 2.0
+        $g.DrawLine($p, $cx - $span, $cy - $span, $cx + $span, $cy + $span)
+        $g.DrawLine($p, $cx + $span, $cy - $span, $cx - $span, $cy + $span)
         $p.Dispose()
     })
     $w.Add_MouseDown({ $script:stgDrag = [System.Windows.Forms.Cursor]::Position - $script:stg.Location })
@@ -1032,8 +1092,8 @@ function Build-SettingsWindow {
     [void](New-Label '唤出快捷键' 12 44 96 22 $fontUI $colDim 'MiddleRight' $w)
 
     $tb = New-Object System.Windows.Forms.TextBox
-    $tb.Location = New-Object System.Drawing.Point(116, 43)
-    $tb.Size = New-Object System.Drawing.Size(172, 24)
+    $tb.Location = New-Object System.Drawing.Point((Px 116), (Px 43))
+    $tb.Size = New-Object System.Drawing.Size((Px 172), (Px 24))
     $tb.Font = $fontUI
     $tb.BackColor = $colCombo
     $tb.ForeColor = $colFg
@@ -1115,7 +1175,7 @@ function Show-SettingsWindow {
     # The chord has to be free while the window is open, or the OS eats the very
     # keystroke the user is trying to record.
     $script:hk.Unregister()
-    $script:stg.Location = (Fit-ToMonitor (New-Object System.Drawing.Point(($form.Location.X + 8), ($form.Location.Y + 8))) $script:stg.Width $script:stg.Height)
+    $script:stg.Location = (Fit-ToMonitor (New-Object System.Drawing.Point(($form.Location.X + (Px 8)), ($form.Location.Y + (Px 8)))) $script:stg.Width $script:stg.Height)
     $script:stg.Show()
     [void][ZOrder]::SetWindowPos($script:stg.Handle, [IntPtr]::Zero, 0, 0, 0, 0, 0x1 -bor 0x2 -bor 0x40)
     $script:stg.Activate()

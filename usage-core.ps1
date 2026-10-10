@@ -6,16 +6,24 @@ $script:chunkBytes = 4194304
 # counters. The bounded [^\r\n] guard keeps every match inside one line.
 $script:rxPair = [regex]'"timestamp":"([^"]+)"[^\r\n]{0,400000}?"usage":\{([^{}]*?"inputCacheRead"[^{}]*?)\}'
 
+# Unit scaling with two decimals, truncated rather than rounded. Rounding would
+# print 999,950 as "1.00M" — which reads as a million when the value has not got
+# there yet — so the digits are cut instead: 999,950 becomes "0.99M". The unit
+# steps up at 999,950 (and 999,950,000) so "1000.00K" can never be printed
+# either. Integer arithmetic throughout, so no double rounding creeps in.
+function Format-ScaledTokens {
+    param([int64]$Value, [int64]$Div, [string]$Unit)
+    $whole = [int64][Math]::Floor($Value / $Div)
+    $frac = [int64][Math]::Floor((($Value % $Div) * 100) / $Div)
+    return ('{0}.{1:D2}{2}' -f $whole, $frac, $Unit)
+}
+
 function Format-Tokens {
     param([int64]$n)
-    # One decimal place in every unit, so the widest value is six characters
-    # ("999.9M") and the value column stays narrow. The unit is stepped up a
-    # little before its boundary (999.95) so a rounded "1000.0K" can never
-    # appear. Fixed-point, not "N", which would insert a thousands separator.
-    if ($n -ge 999950000) { return ('{0:F1}B' -f ($n / 1000000000.0)) }
-    if ($n -ge 999950)    { return ('{0:F1}M' -f ($n / 1000000.0)) }
-    if ($n -ge 1000)      { return ('{0:F1}K' -f ($n / 1000.0)) }
-    return ('{0:F0}' -f $n)
+    if ($n -ge 999950000) { return (Format-ScaledTokens $n 1000000000 'B') }
+    if ($n -ge 999950)    { return (Format-ScaledTokens $n 1000000 'M') }
+    if ($n -ge 1000)      { return (Format-ScaledTokens $n 1000 'K') }
+    return ('{0}' -f $n)
 }
 
 function Read-Field {

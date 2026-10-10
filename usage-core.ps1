@@ -6,11 +6,10 @@ $script:chunkBytes = 4194304
 # counters. The bounded [^\r\n] guard keeps every match inside one line.
 $script:rxPair = [regex]'"timestamp":"([^"]+)"[^\r\n]{0,400000}?"usage":\{([^{}]*?"inputCacheRead"[^{}]*?)\}'
 
-# Unit scaling with two decimals, truncated rather than rounded. Rounding would
-# print 999,950 as "1.00M" — which reads as a million when the value has not got
-# there yet — so the digits are cut instead: 999,950 becomes "0.99M". The unit
-# steps up at 999,950 (and 999,950,000) so "1000.00K" can never be printed
-# either. Integer arithmetic throughout, so no double rounding creeps in.
+# Unit scaling with two decimals, truncated rather than rounded: rounding would
+# print 999,950 as "1.00M" — a magnitude it has not reached — so the digits are
+# cut instead (999,950 becomes "0.99M"). Integer arithmetic throughout, so no
+# double rounding creeps in.
 function Format-ScaledTokens {
     param([int64]$Value, [int64]$Div, [string]$Unit)
     $whole = [int64][Math]::Floor($Value / $Div)
@@ -18,10 +17,15 @@ function Format-ScaledTokens {
     return ('{0}.{1:D2}{2}' -f $whole, $frac, $Unit)
 }
 
+# Each unit starts as soon as it can be written with two significant digits, so
+# a value reads as "0.10M" from 100,000 rather than "100.00K", and every value
+# is at most six characters wide ("99.99M") — which is what keeps the value
+# column narrow. Truncation means the step boundaries cannot overshoot into
+# "100.00K" either.
 function Format-Tokens {
     param([int64]$n)
-    if ($n -ge 999950000) { return (Format-ScaledTokens $n 1000000000 'B') }
-    if ($n -ge 999950)    { return (Format-ScaledTokens $n 1000000 'M') }
+    if ($n -ge 100000000) { return (Format-ScaledTokens $n 1000000000 'B') }
+    if ($n -ge 100000)    { return (Format-ScaledTokens $n 1000000 'M') }
     if ($n -ge 1000)      { return (Format-ScaledTokens $n 1000 'K') }
     return ('{0}' -f $n)
 }

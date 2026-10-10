@@ -10,9 +10,10 @@ function Format-Tokens {
     param([int64]$n)
     # Fixed-point rather than numeric format: "N2" inserts a thousands separator
     # once a value crosses 1000, and "1,000.00M" is two characters wider than the
-    # value column in the two-column layout can take. The G step keeps a whole
-    # history (gigabytes of cache reads) to five characters.
-    if ($n -ge 1000000000) { return ('{0:F2}G' -f ($n / 1000000000.0)) }
+    # value column can take. The G step keeps a whole history (gigabytes of cache
+    # reads) to five characters, and starts a little below 1000M so the widest
+    # M value stays "999.49M" rather than "1000.00M".
+    if ($n -ge 999500000) { return ('{0:F2}G' -f ($n / 1000000000.0)) }
     if ($n -ge 1000000) { return ('{0:F2}M' -f ($n / 1000000.0)) }
     if ($n -ge 1000)    { return ('{0:F1}k' -f ($n / 1000.0)) }
     return ('{0:F0}' -f $n)

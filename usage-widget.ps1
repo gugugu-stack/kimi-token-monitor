@@ -106,7 +106,7 @@ $script:brushFg    = New-Object System.Drawing.SolidBrush($colFg)
 $script:brushCombo = New-Object System.Drawing.SolidBrush($colCombo)
 $script:brushSel   = New-Object System.Drawing.SolidBrush($colSel)
 
-$script:PanelW = (Px 320)
+$script:PanelW = (Px 284)
 
 # The cache-write row is part of the grid now rather than a row that appears and
 # disappears, so the panel has one fixed size. The scan still runs here so the
@@ -365,9 +365,9 @@ function Hide-PanelWindows {
 # icons are drawn rather than typed: a dash and a multiplication sign carry very
 # different weights at the same font size, which is what made the two buttons
 # look mismatched. Drawing gives each the same 9px span and stroke.
-$script:iconCfg   = New-Object System.Drawing.Rectangle((Px 250), (Px 8), (Px 18), (Px 18))
-$script:iconMin   = New-Object System.Drawing.Rectangle((Px 272), (Px 8), (Px 18), (Px 18))
-$script:iconClose = New-Object System.Drawing.Rectangle((Px 294), (Px 8), (Px 18), (Px 18))
+$script:iconCfg   = New-Object System.Drawing.Rectangle((Px 214), (Px 8), (Px 18), (Px 18))
+$script:iconMin   = New-Object System.Drawing.Rectangle((Px 236), (Px 8), (Px 18), (Px 18))
+$script:iconClose = New-Object System.Drawing.Rectangle((Px 258), (Px 8), (Px 18), (Px 18))
 $script:hoverIcon = ''
 $script:panelDragged = $false
 
@@ -437,7 +437,7 @@ function New-Label {
     return $l
 }
 
-$lblHead = New-Label 'Kimi Code 用量' 12 10 234 20 $fontHead $colFg
+$lblHead = New-Label 'Kimi Code 用量' 12 10 198 20 $fontHead $colFg
 
 $drawComboItem = {
     param($sender, $e)
@@ -467,22 +467,23 @@ function New-Combo {
     return $cb
 }
 
-$cbTime  = New-Combo 12 34 148 @('不限', '今天', '昨天', '近 3 天', '近 7 天', '近 30 天', '本月', '上月') 1
-$cbScope = New-Combo 166 34 142 @('当前会话', '全部会话') 0
+$cbTime  = New-Combo 12 34 124 @('不限', '今天', '昨天', '近 3 天', '近 7 天', '近 30 天', '本月', '上月') 1
+$cbScope = New-Combo 142 34 130 @('当前会话', '全部会话') 0
 
-$lblSub = New-Label '正在统计…' 12 60 296 16 $fontSmall $colDim
+$lblSub = New-Label '正在统计…' 12 60 260 16 $fontSmall $colDim
 
-# Two metrics per row: 输入 | 输出, 请求次数 | 缓存读取, then the hit rate alone.
+# Two metrics per row: 输入 | 输出, 缓存读取 | 请求次数, then the hit rate alone.
 # Names are left aligned and values right aligned, so each column reads as a
 # label followed by a number flush with the column's right edge — the numbers
 # line up whatever their width, and each box is only as wide as its content.
-$colName1X = 12;  $colName1W = 92
-$colVal1X  = 106; $colVal1W = 62
-$colName2X = 176; $colName2W = 67
-$colVal2X  = 245; $colVal2W = 62
+# Half-width parentheses in 输入(非缓存) keep the label narrow and its ink flush.
+$colName1X = 12;  $colName1W = 76
+$colVal1X  = 90;  $colVal1W = 58
+$colName2X = 156; $colName2W = 56
+$colVal2X  = 214; $colVal2W = 58
 
 $rowY = 82
-$lblInName  = New-Label '输入（非缓存）' $colName1X $rowY $colName1W 20 $fontUI $colDim
+$lblInName  = New-Label '输入(非缓存)' $colName1X $rowY $colName1W 20 $fontUI $colDim
 $lblInVal   = New-Label '—' $colVal1X $rowY $colVal1W 20 $fontUI $colFg 'MiddleRight'
 $lblOutName = New-Label '输出' $colName2X $rowY $colName2W 20 $fontUI $colDim
 $lblOutVal  = New-Label '—' $colVal2X $rowY $colVal2W 20 $fontUI $colFg 'MiddleRight'

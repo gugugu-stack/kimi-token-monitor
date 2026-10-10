@@ -25,6 +25,9 @@ public class Dpi {
     [DllImport("shcore.dll")] private static extern int SetProcessDpiAwareness(int value);
     [DllImport("user32.dll")] private static extern bool SetProcessDPIAware();
     [DllImport("user32.dll")] private static extern uint GetDpiForSystem();
+    [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hwnd);
+    [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hwnd, IntPtr dc);
+    [DllImport("gdi32.dll")] private static extern int GetDeviceCaps(IntPtr dc, int index);
     // Returns which call worked, 0 if none did.
     public static int Apply() {
         try { if (SetProcessDpiAwarenessContext(new IntPtr(-4))) return 1; } catch { }  // PER_MONITOR_AWARE_V2
@@ -32,7 +35,21 @@ public class Dpi {
         try { if (SetProcessDPIAware()) return 3; } catch { }                           // SYSTEM_DPI_AWARE
         return 0;
     }
-    public static int SystemDpi() { try { return (int)GetDpiForSystem(); } catch { return 96; } }
+    // GetDpiForSystem only exists from Windows 10 1607; an older build would throw
+    // and, worse, be treated as 96 DPI while the process is in fact DPI-aware, so
+    // the screen DC path is the fallback — it works on every Windows version.
+    public static int SystemDpi() {
+        try { return (int)GetDpiForSystem(); } catch { }
+        try {
+            IntPtr dc = GetDC(IntPtr.Zero);
+            if (dc != IntPtr.Zero) {
+                int dpi = GetDeviceCaps(dc, 88);   // LOGPIXELSX
+                ReleaseDC(IntPtr.Zero, dc);
+                if (dpi > 0) { return dpi; }
+            }
+        } catch { }
+        return 96;
+    }
 }
 '@
 

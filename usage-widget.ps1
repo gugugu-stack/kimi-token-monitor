@@ -106,19 +106,15 @@ $script:brushFg    = New-Object System.Drawing.SolidBrush($colFg)
 $script:brushCombo = New-Object System.Drawing.SolidBrush($colCombo)
 $script:brushSel   = New-Object System.Drawing.SolidBrush($colSel)
 
-$script:PanelW = (Px 360)
+$script:PanelW = (Px 336)
 
-# Cache-creation tokens ("cache write") are an Anthropic-API concept: OpenAI-style
-# and Kimi's managed API cache automatically and never report a separate write
-# count. Across every stored session that is 0 of 6174 usage records, so the row
-# is only worth showing when a provider actually reports something. Scanning here
-# (before the layout is built) keeps the panel from resizing after it is placed.
+# The cache-write row is part of the grid now rather than a row that appears and
+# disappears, so the panel has one fixed size. The scan still runs here so the
+# first paint has data to show instead of counting up from "统计中…".
 Update-Scan -BudgetBytes 1073741824
-$script:createRowShown = ((Get-ScopeTotals '全部会话' $null).Create -gt 0)
 
 function Get-PanelHeight {
-    if ($script:createRowShown) { return (Px 184) }
-    return (Px 162)
+    return (Px 158)
 }
 $script:PanelH = Get-PanelHeight
 
@@ -369,9 +365,9 @@ function Hide-PanelWindows {
 # icons are drawn rather than typed: a dash and a multiplication sign carry very
 # different weights at the same font size, which is what made the two buttons
 # look mismatched. Drawing gives each the same 9px span and stroke.
-$script:iconCfg   = New-Object System.Drawing.Rectangle((Px 290), (Px 8), (Px 18), (Px 18))
-$script:iconMin   = New-Object System.Drawing.Rectangle((Px 312), (Px 8), (Px 18), (Px 18))
-$script:iconClose = New-Object System.Drawing.Rectangle((Px 334), (Px 8), (Px 18), (Px 18))
+$script:iconCfg   = New-Object System.Drawing.Rectangle((Px 266), (Px 8), (Px 18), (Px 18))
+$script:iconMin   = New-Object System.Drawing.Rectangle((Px 288), (Px 8), (Px 18), (Px 18))
+$script:iconClose = New-Object System.Drawing.Rectangle((Px 310), (Px 8), (Px 18), (Px 18))
 $script:hoverIcon = ''
 $script:panelDragged = $false
 
@@ -441,7 +437,7 @@ function New-Label {
     return $l
 }
 
-$lblHead = New-Label 'Kimi Code 用量' 12 10 270 20 $fontHead $colFg
+$lblHead = New-Label 'Kimi Code 用量' 12 10 246 20 $fontHead $colFg
 
 $drawComboItem = {
     param($sender, $e)
@@ -471,41 +467,34 @@ function New-Combo {
     return $cb
 }
 
-$cbTime  = New-Combo 12 34 174 @('不限', '今天', '昨天', '近 3 天', '近 7 天', '近 30 天', '本月', '上月') 1
-$cbScope = New-Combo 192 34 156 @('当前会话', '全部会话') 0
+$cbTime  = New-Combo 12 34 150 @('不限', '今天', '昨天', '近 3 天', '近 7 天', '近 30 天', '本月', '上月') 1
+$cbScope = New-Combo 168 34 156 @('当前会话', '全部会话') 0
 
-$lblSub = New-Label '正在统计…' 12 60 324 16 $fontSmall $colDim
+$lblSub = New-Label '正在统计…' 12 60 300 16 $fontSmall $colDim
 
-# Two metrics per row — 输入 | 缓存读取, then 输出 | 请求次数 — and the hit rate on a
-# row of its own. Column geometry is written in 96 DPI units like the rest.
-$colName1X = 12;  $colNameW = 94
-$colVal1X  = 108; $colValW = 70
-$colName2X = 184; $colVal2X = 280
+# Three rows of two metrics: 输入 | 输出, 缓存读取 | 缓存写入, 请求次数 | 缓存命中率.
+# Column widths are the measured worst case — 输入（非缓存） is 90.5px and a value
+# such as 419.55M is 67px — which is what keeps the panel this narrow.
+$colName1X = 12;  $colName1W = 92
+$colVal1X  = 106; $colVal1W = 70
+$colName2X = 182; $colName2W = 70
+$colVal2X  = 256; $colVal2W = 68
 
 $rowY = 82
-$lblInName  = New-Label '输入（非缓存）' $colName1X $rowY $colNameW 20 $fontUI $colDim 'MiddleRight'
-$lblInVal   = New-Label '—' $colVal1X $rowY $colValW 20 $fontUI $colFg
-$lblRdName  = New-Label '缓存读取' $colName2X $rowY $colNameW 20 $fontUI $colDim 'MiddleRight'
-$lblRdVal   = New-Label '—' $colVal2X $rowY $colValW 20 $fontUI $colFg
+$lblInName  = New-Label '输入（非缓存）' $colName1X $rowY $colName1W 20 $fontUI $colDim 'MiddleRight'
+$lblInVal   = New-Label '—' $colVal1X $rowY $colVal1W 20 $fontUI $colFg
+$lblOutName = New-Label '输出' $colName2X $rowY $colName2W 20 $fontUI $colDim 'MiddleRight'
+$lblOutVal  = New-Label '—' $colVal2X $rowY $colVal2W 20 $fontUI $colFg
 $rowY += 22
-$lblOutName = New-Label '输出' $colName1X $rowY $colNameW 20 $fontUI $colDim 'MiddleRight'
-$lblOutVal  = New-Label '—' $colVal1X $rowY $colValW 20 $fontUI $colFg
-$lblReqName = New-Label '请求次数' $colName2X $rowY $colNameW 20 $fontUI $colDim 'MiddleRight'
-$lblReqVal  = New-Label '—' $colVal2X $rowY $colValW 20 $fontUI $colFg
+$lblRdName  = New-Label '缓存读取' $colName1X $rowY $colName1W 20 $fontUI $colDim 'MiddleRight'
+$lblRdVal   = New-Label '—' $colVal1X $rowY $colVal1W 20 $fontUI $colFg
+$lblCrName  = New-Label '缓存写入' $colName2X $rowY $colName2W 20 $fontUI $colDim 'MiddleRight'
+$lblCrVal   = New-Label '—' $colVal2X $rowY $colVal2W 20 $fontUI $colFg
 $rowY += 22
-# Only ever shown for providers that report cache writes; it takes a row of its
-# own below the two columns so the rows above never move.
-$lblCrName  = New-Label '缓存写入' $colName1X $rowY $colNameW 20 $fontUI $colDim 'MiddleRight'
-$lblCrVal   = New-Label '—' $colVal1X $rowY $colValW 20 $fontUI $colFg
-$lblCrName.Visible = $script:createRowShown
-$lblCrVal.Visible  = $script:createRowShown
-# Hidden row must not consume a slot, otherwise the hit-rate row below it falls
-# outside the shorter panel.
-if (-not $script:createRowShown) { $rowY -= 22 }
-$rowY += 26
-
-$lblRateName = New-Label '缓存命中率' $colName1X $rowY $colNameW 22 $fontBold $colFg 'MiddleRight'
-$lblRateVal  = New-Label '—' $colVal1X $rowY 240 22 $fontBold $colFg
+$lblReqName  = New-Label '请求次数' $colName1X $rowY $colName1W 22 $fontUI $colDim 'MiddleRight'
+$lblReqVal   = New-Label '—' $colVal1X $rowY $colVal1W 22 $fontUI $colFg
+$lblRateName = New-Label '缓存命中率' $colName2X $rowY $colName2W 22 $fontBold $colFg 'MiddleRight'
+$lblRateVal  = New-Label '—' $colVal2X $rowY $colVal2W 22 $fontBold $colFg
 
 # Numbers take the client's Latin face, and therefore have to be drawn by GDI+:
 # the native label renderer goes through GDI, which cannot see a privately
@@ -516,21 +505,6 @@ foreach ($lbl in @($lblInVal, $lblOutVal, $lblRdVal, $lblCrVal, $lblReqVal)) {
 }
 $lblRateVal.Font = $fontNumBold
 $lblRateVal.UseCompatibleTextRendering = $true
-
-# The cache-write row can appear mid-session if a provider that reports cache
-# writes starts being used, so the layout is adjusted rather than assumed.
-function Set-CreateRowVisible {
-    param([bool]$Show)
-    if ($Show -eq $script:createRowShown) { return }
-    $script:createRowShown = $Show
-    $lblCrName.Visible = $Show
-    $lblCrVal.Visible = $Show
-    $rateY = if ($Show) { 152 } else { 130 }
-    $lblRateName.Location = New-Object System.Drawing.Point((Px $colName1X), (Px $rateY))
-    $lblRateVal.Location = New-Object System.Drawing.Point((Px $colVal1X), (Px $rateY))
-    Set-PanelGeometry $form.Location $script:PanelW (Get-PanelHeight)
-    $form.Invalidate()
-}
 
 # ---------- pet form ----------
 
@@ -859,7 +833,6 @@ $updateDisplay = {
     $lblRdVal.Text  = Format-Tokens $tot.Read
     $lblCrVal.Text  = Format-Tokens $tot.Create
     $lblReqVal.Text = ('{0:N0}' -f $tot.Requests)
-    Set-CreateRowVisible ($tot.Create -gt 0)
 
     if ($rate -ge 0) { $lblRateVal.Text = ('{0:N1}%' -f $rate) } else { $lblRateVal.Text = '—' }
     $lblRateVal.ForeColor = Get-HitRateColor ([double]$rate)

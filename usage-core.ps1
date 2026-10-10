@@ -8,9 +8,14 @@ $script:rxPair = [regex]'"timestamp":"([^"]+)"[^\r\n]{0,400000}?"usage":\{([^{}]
 
 function Format-Tokens {
     param([int64]$n)
-    if ($n -ge 1000000) { return ('{0:N2}M' -f ($n / 1000000.0)) }
-    if ($n -ge 1000)    { return ('{0:N1}k' -f ($n / 1000.0)) }
-    return ('{0:N0}' -f $n)
+    # Fixed-point rather than numeric format: "N2" inserts a thousands separator
+    # once a value crosses 1000, and "1,000.00M" is two characters wider than the
+    # value column in the two-column layout can take. The G step keeps a whole
+    # history (gigabytes of cache reads) to five characters.
+    if ($n -ge 1000000000) { return ('{0:F2}G' -f ($n / 1000000000.0)) }
+    if ($n -ge 1000000) { return ('{0:F2}M' -f ($n / 1000000.0)) }
+    if ($n -ge 1000)    { return ('{0:F1}k' -f ($n / 1000.0)) }
+    return ('{0:F0}' -f $n)
 }
 
 function Read-Field {

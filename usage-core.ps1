@@ -102,13 +102,17 @@ function Update-Scan {
                     $key = Get-LocalDateKey $m.Groups[1].Value
                     if (-not $key) { continue }
                     if (-not $state.Buckets.ContainsKey($key)) {
-                        $state.Buckets[$key] = @{ Input = [int64]0; Output = [int64]0; Read = [int64]0; Create = [int64]0 }
+                        $state.Buckets[$key] = @{ Input = [int64]0; Output = [int64]0; Read = [int64]0; Create = [int64]0; Requests = [int64]0 }
                     }
                     $b = $state.Buckets[$key]
                     $b.Input  += Read-Field $body 'inputOther'
                     $b.Output += Read-Field $body 'output'
                     $b.Read   += Read-Field $body 'inputCacheRead'
                     $b.Create += Read-Field $body 'inputCacheCreation'
+                    # One usage record is exactly one API request: each completed
+                    # step carries its own stepId and no stepId repeats, so this
+                    # is a count rather than an estimate.
+                    $b.Requests = $b.Requests + 1
                 }
 
                 $state.Offset += $consumed
@@ -148,7 +152,7 @@ function Get-RangeDates {
 function Get-ScopeTotals {
     param([string]$Scope, $DateKeys)
 
-    $total = @{ Input = [int64]0; Output = [int64]0; Read = [int64]0; Create = [int64]0 }
+    $total = @{ Input = [int64]0; Output = [int64]0; Read = [int64]0; Create = [int64]0; Requests = [int64]0 }
 
     if ($Scope -eq '当前会话') {
         $newest = Get-ActiveFile
@@ -174,6 +178,7 @@ function Get-ScopeTotals {
             $total.Output += $b.Output
             $total.Read   += $b.Read
             $total.Create += $b.Create
+            $total.Requests += $b.Requests
         }
     }
     return $total

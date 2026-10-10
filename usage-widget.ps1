@@ -117,8 +117,8 @@ Update-Scan -BudgetBytes 1073741824
 $script:createRowShown = ((Get-ScopeTotals '全部会话' $null).Create -gt 0)
 
 function Get-PanelHeight {
-    if ($script:createRowShown) { return (Px 206) }
-    return (Px 182)
+    if ($script:createRowShown) { return (Px 232) }
+    return (Px 208)
 }
 $script:PanelH = Get-PanelHeight
 
@@ -508,6 +508,13 @@ foreach ($lbl in @($lblInVal, $lblOutVal, $lblRdVal, $lblCrVal)) {
 $lblRateVal.Font = $fontNumBold
 $lblRateVal.UseCompatibleTextRendering = $true
 
+# Request count sits below the rate row: it is a volume metric rather than a
+# cache metric, and keeping it last means the rate row above never moves.
+$reqY = $rowY + 26
+$lblReqName = New-Label '请求次数' 12 $reqY 104 20 $fontUI $colDim 'MiddleRight'
+$lblReqVal  = New-Label '—' 122 $reqY 170 20 $fontNum $colFg
+$lblReqVal.UseCompatibleTextRendering = $true
+
 # The row can appear mid-session if a provider that reports cache writes starts
 # being used, so the layout is adjusted rather than assumed.
 function Set-CreateRowVisible {
@@ -519,6 +526,9 @@ function Set-CreateRowVisible {
     $rateY = if ($Show) { 174 } else { 152 }
     $lblRateName.Location = New-Object System.Drawing.Point((Px 12), (Px $rateY))
     $lblRateVal.Location = New-Object System.Drawing.Point((Px 122), (Px $rateY))
+    $reqY = $rateY + 26
+    $lblReqName.Location = New-Object System.Drawing.Point((Px 12), (Px $reqY))
+    $lblReqVal.Location = New-Object System.Drawing.Point((Px 122), (Px $reqY))
     Set-PanelGeometry $form.Location $script:PanelW (Get-PanelHeight)
     $form.Invalidate()
 }
@@ -843,6 +853,7 @@ $updateDisplay = {
     $lblOutVal.Text = Format-Tokens $tot.Output
     $lblRdVal.Text  = Format-Tokens $tot.Read
     $lblCrVal.Text  = Format-Tokens $tot.Create
+    $lblReqVal.Text = ('{0:N0}' -f $tot.Requests)
     Set-CreateRowVisible ($tot.Create -gt 0)
 
     if ($rate -ge 0) { $lblRateVal.Text = ('{0:N1}%' -f $rate) } else { $lblRateVal.Text = '—' }

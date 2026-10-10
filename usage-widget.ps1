@@ -106,7 +106,7 @@ $script:brushFg    = New-Object System.Drawing.SolidBrush($colFg)
 $script:brushCombo = New-Object System.Drawing.SolidBrush($colCombo)
 $script:brushSel   = New-Object System.Drawing.SolidBrush($colSel)
 
-$script:PanelW = (Px 312)
+$script:PanelW = (Px 320)
 
 # The cache-write row is part of the grid now rather than a row that appears and
 # disappears, so the panel has one fixed size. The scan still runs here so the
@@ -365,9 +365,9 @@ function Hide-PanelWindows {
 # icons are drawn rather than typed: a dash and a multiplication sign carry very
 # different weights at the same font size, which is what made the two buttons
 # look mismatched. Drawing gives each the same 9px span and stroke.
-$script:iconCfg   = New-Object System.Drawing.Rectangle((Px 242), (Px 8), (Px 18), (Px 18))
-$script:iconMin   = New-Object System.Drawing.Rectangle((Px 264), (Px 8), (Px 18), (Px 18))
-$script:iconClose = New-Object System.Drawing.Rectangle((Px 286), (Px 8), (Px 18), (Px 18))
+$script:iconCfg   = New-Object System.Drawing.Rectangle((Px 250), (Px 8), (Px 18), (Px 18))
+$script:iconMin   = New-Object System.Drawing.Rectangle((Px 272), (Px 8), (Px 18), (Px 18))
+$script:iconClose = New-Object System.Drawing.Rectangle((Px 294), (Px 8), (Px 18), (Px 18))
 $script:hoverIcon = ''
 $script:panelDragged = $false
 
@@ -437,7 +437,7 @@ function New-Label {
     return $l
 }
 
-$lblHead = New-Label 'Kimi Code 用量' 12 10 226 20 $fontHead $colFg
+$lblHead = New-Label 'Kimi Code 用量' 12 10 234 20 $fontHead $colFg
 
 $drawComboItem = {
     param($sender, $e)
@@ -468,39 +468,37 @@ function New-Combo {
 }
 
 $cbTime  = New-Combo 12 34 148 @('不限', '今天', '昨天', '近 3 天', '近 7 天', '近 30 天', '本月', '上月') 1
-$cbScope = New-Combo 166 34 134 @('当前会话', '全部会话') 0
+$cbScope = New-Combo 166 34 142 @('当前会话', '全部会话') 0
 
-$lblSub = New-Label '正在统计…' 12 60 288 16 $fontSmall $colDim
+$lblSub = New-Label '正在统计…' 12 60 296 16 $fontSmall $colDim
 
-# Three rows of two metrics: 输入 | 输出, 缓存读取 | 平均每次, 请求次数 | 缓存命中率.
-# Values are right aligned, so the numbers in a column line up, and each box can
-# be sized to its own content — the panel is then exactly two label columns plus
-# two value columns with nothing spare.
-$colName1X = 12;  $colName1W = 91
-$colVal1X  = 106; $colVal1W = 56
-$colName2X = 172; $colName2W = 67
-$colVal2X  = 243; $colVal2W = 56
+# Two metrics per row: 输入 | 输出, 请求次数 | 缓存读取, then the hit rate alone.
+# Names are left aligned and values right aligned, so each column reads as a
+# label followed by a number flush with the column's right edge — the numbers
+# line up whatever their width, and each box is only as wide as its content.
+$colName1X = 12;  $colName1W = 92
+$colVal1X  = 106; $colVal1W = 62
+$colName2X = 176; $colName2W = 67
+$colVal2X  = 245; $colVal2W = 62
 
 $rowY = 82
-$lblInName  = New-Label '输入（非缓存）' $colName1X $rowY $colName1W 20 $fontUI $colDim 'MiddleRight'
+$lblInName  = New-Label '输入（非缓存）' $colName1X $rowY $colName1W 20 $fontUI $colDim
 $lblInVal   = New-Label '—' $colVal1X $rowY $colVal1W 20 $fontUI $colFg 'MiddleRight'
-$lblOutName = New-Label '输出' $colName2X $rowY $colName2W 20 $fontUI $colDim 'MiddleRight'
+$lblOutName = New-Label '输出' $colName2X $rowY $colName2W 20 $fontUI $colDim
 $lblOutVal  = New-Label '—' $colVal2X $rowY $colVal2W 20 $fontUI $colFg 'MiddleRight'
 $rowY += 22
-$lblRdName  = New-Label '缓存读取' $colName1X $rowY $colName1W 20 $fontUI $colDim 'MiddleRight'
-$lblRdVal   = New-Label '—' $colVal1X $rowY $colVal1W 20 $fontUI $colFg 'MiddleRight'
-$lblAvgName = New-Label '平均每次' $colName2X $rowY $colName2W 20 $fontUI $colDim 'MiddleRight'
-$lblAvgVal  = New-Label '—' $colVal2X $rowY $colVal2W 20 $fontUI $colFg 'MiddleRight'
+$lblReqName = New-Label '请求次数' $colName1X $rowY $colName1W 20 $fontUI $colDim
+$lblReqVal  = New-Label '—' $colVal1X $rowY $colVal1W 20 $fontUI $colFg 'MiddleRight'
+$lblRdName  = New-Label '缓存读取' $colName2X $rowY $colName2W 20 $fontUI $colDim
+$lblRdVal   = New-Label '—' $colVal2X $rowY $colVal2W 20 $fontUI $colFg 'MiddleRight'
 $rowY += 22
-$lblReqName  = New-Label '请求次数' $colName1X $rowY $colName1W 22 $fontUI $colDim 'MiddleRight'
-$lblReqVal   = New-Label '—' $colVal1X $rowY $colVal1W 22 $fontUI $colFg 'MiddleRight'
-$lblRateName = New-Label '缓存命中率' $colName2X $rowY $colName2W 22 $fontBold $colFg 'MiddleRight'
-$lblRateVal  = New-Label '—' $colVal2X $rowY $colVal2W 22 $fontBold $colFg 'MiddleRight'
+$lblRateName = New-Label '缓存命中率' $colName1X $rowY $colName1W 22 $fontBold $colFg
+$lblRateVal  = New-Label '—' $colVal1X $rowY $colVal1W 22 $fontBold $colFg 'MiddleRight'
 
 # Numbers take the client's Latin face, and therefore have to be drawn by GDI+:
 # the native label renderer goes through GDI, which cannot see a privately
 # loaded family at all and would quietly substitute a system font.
-foreach ($lbl in @($lblInVal, $lblOutVal, $lblRdVal, $lblAvgVal, $lblReqVal)) {
+foreach ($lbl in @($lblInVal, $lblOutVal, $lblRdVal, $lblReqVal)) {
     $lbl.Font = $fontNum
     $lbl.UseCompatibleTextRendering = $true
 }
@@ -831,14 +829,8 @@ $updateDisplay = {
 
     $lblInVal.Text  = Format-Tokens $tot.Input
     $lblOutVal.Text = Format-Tokens $tot.Output
-    $lblRdVal.Text  = Format-Tokens $tot.Read
     $lblReqVal.Text = ('{0:N0}' -f $tot.Requests)
-    # Average tokens per request: everything the model was fed or wrote, divided
-    # by the number of requests that produced it.
-    $perReq = if ($tot.Requests -gt 0) {
-        [int64](($tot.Input + $tot.Read + $tot.Create + $tot.Output) / $tot.Requests)
-    } else { [int64]0 }
-    $lblAvgVal.Text = Format-Tokens $perReq
+    $lblRdVal.Text  = Format-Tokens $tot.Read
 
     if ($rate -ge 0) { $lblRateVal.Text = ('{0:N1}%' -f $rate) } else { $lblRateVal.Text = '—' }
     $lblRateVal.ForeColor = Get-HitRateColor ([double]$rate)

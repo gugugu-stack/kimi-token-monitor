@@ -106,7 +106,7 @@ $script:brushFg    = New-Object System.Drawing.SolidBrush($colFg)
 $script:brushCombo = New-Object System.Drawing.SolidBrush($colCombo)
 $script:brushSel   = New-Object System.Drawing.SolidBrush($colSel)
 
-$script:PanelW = (Px 312)
+$script:PanelW = (Px 360)
 
 # Cache-creation tokens ("cache write") are an Anthropic-API concept: OpenAI-style
 # and Kimi's managed API cache automatically and never report a separate write
@@ -117,8 +117,8 @@ Update-Scan -BudgetBytes 1073741824
 $script:createRowShown = ((Get-ScopeTotals '全部会话' $null).Create -gt 0)
 
 function Get-PanelHeight {
-    if ($script:createRowShown) { return (Px 232) }
-    return (Px 208)
+    if ($script:createRowShown) { return (Px 184) }
+    return (Px 162)
 }
 $script:PanelH = Get-PanelHeight
 
@@ -369,9 +369,9 @@ function Hide-PanelWindows {
 # icons are drawn rather than typed: a dash and a multiplication sign carry very
 # different weights at the same font size, which is what made the two buttons
 # look mismatched. Drawing gives each the same 9px span and stroke.
-$script:iconCfg   = New-Object System.Drawing.Rectangle((Px 242), (Px 8), (Px 18), (Px 18))
-$script:iconMin   = New-Object System.Drawing.Rectangle((Px 264), (Px 8), (Px 18), (Px 18))
-$script:iconClose = New-Object System.Drawing.Rectangle((Px 286), (Px 8), (Px 18), (Px 18))
+$script:iconCfg   = New-Object System.Drawing.Rectangle((Px 290), (Px 8), (Px 18), (Px 18))
+$script:iconMin   = New-Object System.Drawing.Rectangle((Px 312), (Px 8), (Px 18), (Px 18))
+$script:iconClose = New-Object System.Drawing.Rectangle((Px 334), (Px 8), (Px 18), (Px 18))
 $script:hoverIcon = ''
 $script:panelDragged = $false
 
@@ -441,7 +441,7 @@ function New-Label {
     return $l
 }
 
-$lblHead = New-Label 'Kimi Code 用量' 12 10 230 20 $fontHead $colFg
+$lblHead = New-Label 'Kimi Code 用量' 12 10 270 20 $fontHead $colFg
 
 $drawComboItem = {
     param($sender, $e)
@@ -471,23 +471,32 @@ function New-Combo {
     return $cb
 }
 
-$cbTime  = New-Combo 12 34 150 @('不限', '今天', '昨天', '近 3 天', '近 7 天', '近 30 天', '本月', '上月') 1
-$cbScope = New-Combo 168 34 132 @('当前会话', '全部会话') 0
+$cbTime  = New-Combo 12 34 174 @('不限', '今天', '昨天', '近 3 天', '近 7 天', '近 30 天', '本月', '上月') 1
+$cbScope = New-Combo 192 34 156 @('当前会话', '全部会话') 0
 
-$lblSub = New-Label '正在统计…' 12 60 288 16 $fontSmall $colDim
+$lblSub = New-Label '正在统计…' 12 60 324 16 $fontSmall $colDim
+
+# Two metrics per row — 输入 | 缓存读取, then 输出 | 请求次数 — and the hit rate on a
+# row of its own. Column geometry is written in 96 DPI units like the rest.
+$colName1X = 12;  $colNameW = 94
+$colVal1X  = 108; $colValW = 70
+$colName2X = 184; $colVal2X = 280
 
 $rowY = 82
-$lblInName  = New-Label '输入（非缓存）' 12 $rowY 104 20 $fontUI $colDim 'MiddleRight'
-$lblInVal   = New-Label '—' 122 $rowY 170 20 $fontUI $colFg
+$lblInName  = New-Label '输入（非缓存）' $colName1X $rowY $colNameW 20 $fontUI $colDim 'MiddleRight'
+$lblInVal   = New-Label '—' $colVal1X $rowY $colValW 20 $fontUI $colFg
+$lblRdName  = New-Label '缓存读取' $colName2X $rowY $colNameW 20 $fontUI $colDim 'MiddleRight'
+$lblRdVal   = New-Label '—' $colVal2X $rowY $colValW 20 $fontUI $colFg
 $rowY += 22
-$lblOutName = New-Label '输出' 12 $rowY 104 20 $fontUI $colDim 'MiddleRight'
-$lblOutVal  = New-Label '—' 122 $rowY 170 20 $fontUI $colFg
+$lblOutName = New-Label '输出' $colName1X $rowY $colNameW 20 $fontUI $colDim 'MiddleRight'
+$lblOutVal  = New-Label '—' $colVal1X $rowY $colValW 20 $fontUI $colFg
+$lblReqName = New-Label '请求次数' $colName2X $rowY $colNameW 20 $fontUI $colDim 'MiddleRight'
+$lblReqVal  = New-Label '—' $colVal2X $rowY $colValW 20 $fontUI $colFg
 $rowY += 22
-$lblRdName  = New-Label '缓存读取' 12 $rowY 104 20 $fontUI $colDim 'MiddleRight'
-$lblRdVal   = New-Label '—' 122 $rowY 170 20 $fontUI $colFg
-$rowY += 22
-$lblCrName  = New-Label '缓存写入' 12 $rowY 104 20 $fontUI $colDim 'MiddleRight'
-$lblCrVal   = New-Label '—' 122 $rowY 170 20 $fontUI $colFg
+# Only ever shown for providers that report cache writes; it takes a row of its
+# own below the two columns so the rows above never move.
+$lblCrName  = New-Label '缓存写入' $colName1X $rowY $colNameW 20 $fontUI $colDim 'MiddleRight'
+$lblCrVal   = New-Label '—' $colVal1X $rowY $colValW 20 $fontUI $colFg
 $lblCrName.Visible = $script:createRowShown
 $lblCrVal.Visible  = $script:createRowShown
 # Hidden row must not consume a slot, otherwise the hit-rate row below it falls
@@ -495,40 +504,30 @@ $lblCrVal.Visible  = $script:createRowShown
 if (-not $script:createRowShown) { $rowY -= 22 }
 $rowY += 26
 
-$lblRateName = New-Label '缓存命中率' 12 $rowY 104 22 $fontBold $colFg 'MiddleRight'
-$lblRateVal  = New-Label '—' 122 $rowY 170 22 $fontBold $colFg
+$lblRateName = New-Label '缓存命中率' $colName1X $rowY $colNameW 22 $fontBold $colFg 'MiddleRight'
+$lblRateVal  = New-Label '—' $colVal1X $rowY 240 22 $fontBold $colFg
 
 # Numbers take the client's Latin face, and therefore have to be drawn by GDI+:
 # the native label renderer goes through GDI, which cannot see a privately
 # loaded family at all and would quietly substitute a system font.
-foreach ($lbl in @($lblInVal, $lblOutVal, $lblRdVal, $lblCrVal)) {
+foreach ($lbl in @($lblInVal, $lblOutVal, $lblRdVal, $lblCrVal, $lblReqVal)) {
     $lbl.Font = $fontNum
     $lbl.UseCompatibleTextRendering = $true
 }
 $lblRateVal.Font = $fontNumBold
 $lblRateVal.UseCompatibleTextRendering = $true
 
-# Request count sits below the rate row: it is a volume metric rather than a
-# cache metric, and keeping it last means the rate row above never moves.
-$reqY = $rowY + 26
-$lblReqName = New-Label '请求次数' 12 $reqY 104 20 $fontUI $colDim 'MiddleRight'
-$lblReqVal  = New-Label '—' 122 $reqY 170 20 $fontNum $colFg
-$lblReqVal.UseCompatibleTextRendering = $true
-
-# The row can appear mid-session if a provider that reports cache writes starts
-# being used, so the layout is adjusted rather than assumed.
+# The cache-write row can appear mid-session if a provider that reports cache
+# writes starts being used, so the layout is adjusted rather than assumed.
 function Set-CreateRowVisible {
     param([bool]$Show)
     if ($Show -eq $script:createRowShown) { return }
     $script:createRowShown = $Show
     $lblCrName.Visible = $Show
     $lblCrVal.Visible = $Show
-    $rateY = if ($Show) { 174 } else { 152 }
-    $lblRateName.Location = New-Object System.Drawing.Point((Px 12), (Px $rateY))
-    $lblRateVal.Location = New-Object System.Drawing.Point((Px 122), (Px $rateY))
-    $reqY = $rateY + 26
-    $lblReqName.Location = New-Object System.Drawing.Point((Px 12), (Px $reqY))
-    $lblReqVal.Location = New-Object System.Drawing.Point((Px 122), (Px $reqY))
+    $rateY = if ($Show) { 152 } else { 130 }
+    $lblRateName.Location = New-Object System.Drawing.Point((Px $colName1X), (Px $rateY))
+    $lblRateVal.Location = New-Object System.Drawing.Point((Px $colVal1X), (Px $rateY))
     Set-PanelGeometry $form.Location $script:PanelW (Get-PanelHeight)
     $form.Invalidate()
 }
@@ -707,11 +706,17 @@ function Add-PanelIcons {
         Assert-PanelZOrder
         if ($script:panelDragged) { return }
         $p = New-Object System.Drawing.Point($_.X, $_.Y)
-        if ($script:iconCfg.Contains($p)) { Show-SettingsWindow }
-        elseif ($script:iconMin.Contains($p)) { Switch-ToPet }
-        # The × no longer ends the process: it parks the widget in the tray, so an
-        # accidental click is recoverable. Quitting is the tray menu's job.
-        elseif ($script:iconClose.Contains($p)) { Hide-ToTray }
+        # Guarded and logged: an exception thrown here is swallowed by the message
+        # loop, which turns a broken handler into "the button does nothing".
+        try {
+            if ($script:iconCfg.Contains($p)) { Show-SettingsWindow }
+            elseif ($script:iconMin.Contains($p)) { Switch-ToPet }
+            # The × no longer ends the process: it parks the widget in the tray, so
+            # an accidental click is recoverable. Quitting is the tray menu's job.
+            elseif ($script:iconClose.Contains($p)) { Hide-ToTray }
+        } catch {
+            Add-Content -LiteralPath $script:diagPath -Value ("ICON click: " + $_.Exception.ToString())
+        }
     })
 }
 
